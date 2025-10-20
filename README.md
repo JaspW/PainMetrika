@@ -199,7 +199,20 @@ User Flow врача организован в четыре основных б�
 
 ### Примеры экранов UI
 
+Экран регистрации для роли "Врач"
+<img width="1901" height="997" alt="image" src="https://github.com/user-attachments/assets/e3faec89-c459-451b-9b14-974312f7a196" />
 
+Экран регистрации для роли "Пациент"
+<img width="1905" height="998" alt="image" src="https://github.com/user-attachments/assets/fcf6dd27-2b85-4074-ac59-7198c807c161" />
+
+Экран ввода кода подтверждения с почты при регистрации в системе под ролью «Врач»
+<img width="1909" height="997" alt="image" src="https://github.com/user-attachments/assets/16030a12-72b1-4caf-bbd7-69c9e90c6301" />
+
+Экран входа в аккаунт для ролей в системе «Врач» и «Пациент»
+<img width="1913" height="997" alt="image" src="https://github.com/user-attachments/assets/244c2ebf-183d-4644-9505-d07ccd149368" />
+
+Экран «Мои пациенты» для роли «Врач»
+<img width="1904" height="995" alt="image" src="https://github.com/user-attachments/assets/cf69b903-dd8e-4acb-8302-7d41ac05f342" />
 
 ---
 
