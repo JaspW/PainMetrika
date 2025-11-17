@@ -298,11 +298,273 @@ AuditMiddleware. Записывается: пользователь, тип де
 
 ### Манифесты для сборки docker образов
 
-Представить весь код манифестов или ссылки на файлы с ними (при необходимости снабдить комментариями)
+Частичный листинг конфигурационного файла docker-compose.yml, определяющего архитектуру системы:
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: painmetrika_postgres
+    environment:
+      POSTGRES_DB: painmetrika_db
+      POSTGRES_USER: painmetrika_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - painmetrika_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U painmetrika_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: painmetrika_redis
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - painmetrika_network
+
+  backend:
+    build:
+      context: ./PainMetrika_Server
+      dockerfile: Dockerfile
+    container_name: painmetrika_backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000"
+    environment:
+      DATABASE_URL: postgresql://painmetrika_user:${POSTGRES_PASSWORD}@postgres:5432/painmetrika_db
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - painmetrika_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
+
+networks:
+  painmetrika_network:
+    driver: bridge
+
+Листинг Dockerfile для backend:
+
+FROM python:3.11-slim as builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    postgresql-client \
+    libpq-dev \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -u 1000 painmetrika && \
+    mkdir -p /app /app/staticfiles /app/media && \
+    chown -R painmetrika:painmetrika /app
+
+COPY --from=builder /opt/venv /opt/venv
+
+WORKDIR /app
+COPY --chown=painmetrika:painmetrika . /app/
+
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    DJANGO_SETTINGS_MODULE=config.settings
+
+USER painmetrika
+
+EXPOSE 8000
+
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+
+Фрагмент скрипта развертывания:
+
+#!/bin/bash
+
+set -e
+
+echo "=== Развертывание PainMetrika ==="
+
+if ! command -v docker &> /dev/null; then
+    echo "Ошибка: Docker не установлен"
+    exit 1
+fi
+
+if [ ! -d "PainMetrika_Server" ]; then
+    echo "Клонирование Server..."
+    git clone https://github.com/JaspW/PainMetrika_Server.git
+fi
+
+if [ ! -d "PainMetrika_Client" ]; then
+    echo "Клонирование Client..."
+    git clone https://github.com/JaspW/PainMetrika_Client.git
+fi
+
+if [ ! -f ".env" ]; then
+    cp .env.example .env
+fi
+
+docker-compose down
+
+docker-compose build
+
+docker-compose up -d
+
+sleep 10
+
+docker-compose exec -T backend python manage.py migrate
+
+echo "Развертывание завершено!"
+echo "Frontend: http://localhost:8080"
+echo "Backend:  http://localhost:8000"
+
+Конфигурация виртуального хоста Nginx включает следующие директивы:
+
+server {
+    listen 443 ssl http2;
+    server_name painmetrika.example.com;
+
+    # SSL сертификаты
+    ssl_certificate /etc/letsencrypt/live/painmetrika.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/painmetrika.example.com/privkey.pem;
+    
+    # SSL конфигурация
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # API endpoints
+    location /api/ {
+        limit_req zone=api_limit burst=20 nodelay;
+        proxy_pass http://backend:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Frontend
+    location / {
+        proxy_pass http://frontend:8080;
+    }
+}
+
+Production скрипт развертывания включает проверки безопасности:
+
+if [ "$DEBUG" = "True" ]; then
+    echo "Ошибка: DEBUG должен быть False в production!"
+    exit 1
+fi
+
+if [ ${#SECRET_KEY} -lt 50 ]; then
+    echo "Ошибка: SECRET_KEY должен быть минимум 50 символов"
+    exit 1
+fi
+
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw allow 22/tcp
+ufw --force enable
+
+Скрипт резервного копирования БД выполняет следующие операции:
+
+#!/bin/bash
+
+BACKUP_DIR="/opt/painmetrika/backups/$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP_DIR"
+
+docker-compose exec -T postgres pg_dump -U painmetrika_user painmetrika_db > "$BACKUP_DIR/postgres_backup.sql"
+
+docker-compose exec -T redis redis-cli --rdb /data/dump.rdb save
+docker cp painmetrika_redis:/data/dump.rdb "$BACKUP_DIR/redis_backup.rdb"
+
+find /opt/painmetrika/backups -type d -mtime +30 -exec rm -rf {} +
+
+
 
 ### Манифесты для развертывания k8s кластера
 
-Представить весь код манифестов или ссылки на файлы с ними (при необходимости снабдить комментариями)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: painmetrika
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: registry/painmetrika-backend:latest
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: painmetrika-config
+        - secretRef:
+            name: painmetrika-secrets
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
 
 ---
 
