@@ -151,6 +151,34 @@ Google Analytics – для сбора и анализа метрик испол
 
 <img width="1777" height="944" alt="image" src="https://github.com/user-attachments/assets/c69264c9-db44-4f64-a8df-23970d7ed9f4" />
 
+### UML-диаграммы
+
+Диаграмма классов
+
+<img width="1489" height="1711" alt="Диаграмма классов" src="https://github.com/user-attachments/assets/73eb0583-eb54-4de5-8e60-3a220d50c090" />
+
+Диаграмма последовательности регистрации врача
+
+<img width="754" height="1176" alt="image" src="https://github.com/user-attachments/assets/31c3be97-9fcc-4c88-91d9-cf19e394ad38" />
+<img width="1622" height="1190" alt="image" src="https://github.com/user-attachments/assets/b933f744-a122-46d7-83b5-61d8efda324e" />
+
+Диаграмма последовательности проведение теста оценки боли
+
+<img width="1053" height="1237" alt="image" src="https://github.com/user-attachments/assets/139dbe82-8dd9-4b4a-8315-b02cfdd36aab" />
+<img width="1526" height="1376" alt="image" src="https://github.com/user-attachments/assets/d3953c13-cc8a-4f92-9cf4-18a5f49d9dd0" />
+
+Диаграмма состояний результата теста
+
+<img width="668" height="1385" alt="image" src="https://github.com/user-attachments/assets/dc6dbc23-1e82-4a74-90e6-e4fda3612783" />
+<img width="1009" height="1339" alt="image" src="https://github.com/user-attachments/assets/632556e4-bc52-4a64-b024-142ac4bacaf6" />
+
+Диаграмма активности процесса аутентификации
+
+<img width="1045" height="1330" alt="image" src="https://github.com/user-attachments/assets/d41114c3-bcd9-4803-94b5-ed2c50bdb811" />
+<img width="981" height="1103" alt="image" src="https://github.com/user-attachments/assets/fd23cbfc-46fe-427e-bfab-219fbc73b679" />
+<img width="1272" height="1110" alt="image" src="https://github.com/user-attachments/assets/1bdebfa0-3d2e-414c-872c-3a7005206e37" />
+
+
 ---
 
 ## **Пользовательский интерфейс**
